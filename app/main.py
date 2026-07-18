@@ -1,96 +1,60 @@
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse
-import jwt
-import datetime
+from fastapi import FastAPI,HTTPException,Header
+from starlette.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+
 import schemas
 import secrets
+import jwt
+import datetime
 
 app = FastAPI()
-SECRET_KEY = secrets.token_hex(32)
+SECRET = secrets.token_hex(32)
 
-# 获取当前文件所在目录
+# 路径
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# 用户数据库模拟
-USER_DB = {"小明": "123456"}
-
-# 挂载静态文件目录
+TEMPLATE_DIR = BASE_DIR / "templates"
+#挂载静态文件
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# 模板目录路径
-TEMPLATES_DIR = BASE_DIR / "templates"
+#模拟数据库
+USERDB = {"username":"小明","password":"123456"}
 
-
-def render_html(filename: str) -> HTMLResponse:
-    """读取 templates 目录下的 HTML 文件并返回"""
-    html_path = TEMPLATES_DIR / filename
+#渲染html
+def render_html(html_file: str) -> HTMLResponse:
+    """读取模版文件下的文件并返回"""
+    html_path = TEMPLATE_DIR / html_file
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
+@app.get("/")
+def root():
+    return {"Hello": "World"}
 
 @app.get("/login")
-async def login_page():
-    """
-    返回登录界面
-    """
+def login():
     return render_html("login.html")
 
 @app.post("/login")
-async def login(data: schemas.LoginRequest):
-    """
-    :param username: 用户名
-    :param password: 密码
-    :return: 模拟登录函数
-    """
+def login(data: schemas.LoginRequest):
     username = data.username
     password = data.password
-    if username in USER_DB and USER_DB[username] == password:
-        # 验证通过
-        token = jwt.encode(
-            {"username": username, "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)},
-            SECRET_KEY,
-            algorithm="HS256"
-        )
-        return {"code":200, "token": token, "message": "登录成功"}
-    raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if USERDB["username"] == username and USERDB["password"] == password:
+        token = jwt.encode({"username": username, "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)}, SECRET, algorithm="HS256")
+        return {"code": 200, "msg": "登录成功" , "token": token}
+    raise HTTPException(status_code=400, detail="用户名或密码错误")
 
 @app.get("/profile")
-async def profile(x_token: str = Header(...)):
-    """
-    需要登录才能访问
-    :param token:令牌
-    :return: 模拟访问需要登录的页面
-    """
+def profile(x_token: str = Header(...)):
     token = x_token
-    # 验证令牌
     try:
-        data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return {"success": True, "user": data["username"], "message": "登录成功"}
+        data = jwt.decode(token, SECRET, algorithms=["HS256"])
+        return {"code": 200, "msg": "登录成功" , "username": data["username"]}
     except jwt.ExpiredSignatureError:
-        return {"success": False, "message": "登录已过期"}
+        return {"code": 400, "msg": "登录已过期"}
     except jwt.InvalidTokenError:
-        return {"success": False, "message": "无效的令牌"}
-
-@app.get("/")
-def read_root():
-    return RedirectResponse(url="/login")
+        return {"code": 400, "msg": "无效的token"}
 
 
-@app.get("/chat")
-async def chat_page():
-    """
-    返回聊天界面
-    """
-    return render_html("chat.html")
-
-
-@app.get("/register")
-async def register_page():
-    """
-    返回注册界面
-    """
-    return render_html("register.html")
 
 if __name__ == "__main__":
     import uvicorn
