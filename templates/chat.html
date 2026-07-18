@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能伴侣 - 对话</title>
+    <link rel="stylesheet" href="/static/css/chat.css">
+</head>
+<body>
+    <!-- ========== 整体布局容器 ========== -->
+    <div class="chat-app">
+
+        <!-- ===== 左侧：聊天记录列表 ===== -->
+        <aside class="sidebar sidebar-left" id="sidebarLeft">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg viewBox="0 0 32 32" fill="none">
+                        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <circle cx="16" cy="16" r="5" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h2 class="sidebar-title">对话记录</h2>
+            </div>
+
+            <!-- 搜索框 -->
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                    type="text"
+                    id="searchChat"
+                    class="search-input"
+                    placeholder="搜索对话..."
+                >
+            </div>
+
+            <!-- 对话列表 -->
+            <nav class="chat-list" id="chatList">
+                <!-- JS动态填充 -->
+            </nav>
+
+            <!-- 新建对话按钮 -->
+            <div class="sidebar-footer">
+                <button id="newChatBtn" class="btn-new-chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <span>新建对话</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ===== 中间：聊天区域 ===== -->
+        <main class="chat-main">
+            <!-- 顶部标题栏 -->
+            <header class="chat-header">
+                <div class="chat-header-info">
+                    <div class="chat-avatar chat-avatar-sm">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="chat-header-text">
+                        <h3 class="chat-partner-name" id="chatPartnerName">AI 智能伴侣</h3>
+                        <span class="chat-status">在线</span>
+                    </div>
+                </div>
+                <!-- 移动端菜单按钮 -->
+                <button class="btn-mobile-menu" id="btnToggleLeft" aria-label="对话列表">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+            </header>
+
+            <!-- 消息列表 -->
+            <div class="messages-area" id="messagesArea">
+                <div class="messages-list" id="messagesList">
+                    <!-- JS动态填充 -->
+                </div>
+            </div>
+
+            <!-- 底部输入区域 -->
+            <div class="input-area">
+                <div class="input-row">
+                    <input
+                        type="text"
+                        id="messageInput"
+                        class="message-input"
+                        placeholder="输入消息..."
+                        autocomplete="off"
+                    >
+                    <button id="sendBtn" class="btn-send" aria-label="发送">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- ===== 右侧：AI角色信息 ===== -->
+        <aside class="sidebar sidebar-right" id="sidebarRight">
+            <div class="sidebar-header">
+                <button class="btn-mobile-menu" id="btnToggleRight" aria-label="关闭">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+                <h2 class="sidebar-title">AI 角色</h2>
+            </div>
+
+            <div class="profile-card">
+                <!-- 角色头像 -->
+                <div class="profile-avatar">
+                    <svg viewBox="0 0 80 80" fill="none">
+                        <circle cx="40" cy="40" r="36" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <circle cx="40" cy="40" r="20" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.5"/>
+                        <circle cx="40" cy="40" r="8" fill="currentColor"/>
+                    </svg>
+                </div>
+
+                <!-- 角色信息 -->
+                <h3 class="profile-name">小薇</h3>
+                <p class="profile-tagline">你的专属AI伴侣</p>
+
+                <div class="profile-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">LV.5</span>
+                        <span class="stat-label">等级</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">128</span>
+                        <span class="stat-label">对话</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">30天</span>
+                        <span class="stat-label">陪伴</span>
+                    </div>
+                </div>
+
+                <!-- 角色描述 -->
+                <div class="profile-bio">
+                    <h4 class="bio-title">关于我</h4>
+                    <p class="bio-text">
+                        你好！我是小薇，一个善解人意的AI伴侣。
+                        我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。
+                        无论你开心还是难过，我都会在这里陪着你。
+                    </p>
+                </div>
+
+                <!-- 标签 -->
+                <div class="profile-tags">
+                    <span class="tag">💬 善于倾听</span>
+                    <span class="tag">🎵 音乐推荐</span>
+                    <span class="tag">📚 知识分享</span>
+                    <span class="tag">☕ 日常陪伴</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
