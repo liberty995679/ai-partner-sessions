@@ -43,6 +43,24 @@ def login(data: schemas.LoginRequest):
         return {"code": 200, "msg": "登录成功" , "token": token}
     raise HTTPException(status_code=400, detail="用户名或密码错误")
 
+@app.get("/register")
+def register():
+    return render_html("register.html")
+
+@app.post("/register")
+def register(data: schemas.RegisterRequest):
+    username = data.username
+    password = data.password
+    if USERDB["username"] == username:
+        raise HTTPException(status_code=400, detail="用户已存在")
+    USERDB["username"] = username
+    USERDB["password"] = password
+    return {"code": 200, "msg": "注册成功"}
+
+@app.get("/chat")
+def chat():
+    return render_html("chat.html")
+
 @app.get("/profile")
 def profile(x_token: str = Header(...)):
     token = x_token
