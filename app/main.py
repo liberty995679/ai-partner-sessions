@@ -8,7 +8,7 @@ import secrets
 import jwt
 import datetime
 import os
-from openai import OpenAI
+from openai import AsyncOpenAI
 app = FastAPI()
 SECRET = secrets.token_hex(32)
 
@@ -98,7 +98,7 @@ async def chat(data: schemas.ChatRequest):
     )
 
     # 这里调用你的大模型 API，把 persona["prompt"] 作为 System Prompt 传给模型...
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key=os.environ.get('DEEPSEEK_API_KEY'),
         base_url="https://api.deepseek.com")
 
@@ -116,10 +116,10 @@ async def chat(data: schemas.ChatRequest):
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    response = client.chat.completions.create(
+    response =await client.chat.completions.create(
         model="deepseek-v4-pro",
         messages=messages,
-        stream=True,
+        stream=False,
         reasoning_effort="high",
         extra_body={"thinking": {"type": "enabled"}}
     )
