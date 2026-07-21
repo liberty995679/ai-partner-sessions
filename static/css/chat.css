@@ -443,6 +443,13 @@ body {
     flex-direction: row-reverse;
 }
 
+/* 用户气泡容器右对齐，让气泡靠近头像 */
+.message-row.user > div:last-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
 /* --- 头像 --- */
 .message-avatar {
     width: 38px;
@@ -510,7 +517,6 @@ body {
 
 .message-row.user .message-time {
     text-align: right;
-    margin-right: 48px;
 }
 
 /* --- 系统消息（居中） --- */
@@ -689,6 +695,41 @@ body {
     margin-bottom: 4px;
 }
 
+/* --- 可编辑名字标签 --- */
+.profile-label {
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    align-self: flex-start;
+}
+
+/* --- 可编辑名字输入框 --- */
+.profile-name-input {
+    width: 100%;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    text-align: center;
+    background: var(--color-input-bg);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.profile-name-input:focus {
+    border-color: var(--color-input-focus);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+
+.profile-name-input::placeholder {
+    color: var(--color-text-dim);
+}
+
 .profile-tagline {
     font-size: 0.85rem;
     color: var(--color-text-muted);
@@ -755,6 +796,32 @@ body {
     font-size: 0.82rem;
     color: var(--color-text-muted);
     line-height: 1.7;
+}
+
+/* --- 可编辑性格输入框 --- */
+.bio-text-input {
+    width: 100%;
+    min-height: 140px;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    line-height: 1.7;
+    background: var(--color-input-bg);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.bio-text-input:focus {
+    border-color: var(--color-input-focus);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+
+.bio-text-input::placeholder {
+    color: var(--color-text-dim);
 }
 
 /* --- 标签 --- */

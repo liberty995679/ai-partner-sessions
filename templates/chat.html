@@ -128,8 +128,9 @@
                     </svg>
                 </div>
 
-                <!-- 角色信息 -->
-                <h3 class="profile-name">小薇</h3>
+                <!-- 角色信息（可编辑） -->
+                <label class="profile-label">名字</label>
+                <input type="text" id="aiNameInput" class="profile-name-input" value="小薇" maxlength="20" placeholder="输入AI伴侣名字">
                 <p class="profile-tagline">你的专属AI伴侣</p>
 
                 <div class="profile-stats">
@@ -149,14 +150,12 @@
                     </div>
                 </div>
 
-                <!-- 角色描述 -->
+                <!-- 性格描述（可编辑） -->
                 <div class="profile-bio">
-                    <h4 class="bio-title">关于我</h4>
-                    <p class="bio-text">
-                        你好！我是小薇，一个善解人意的AI伴侣。
-                        我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。
-                        无论你开心还是难过，我都会在这里陪着你。
-                    </p>
+                    <h4 class="bio-title">性格设定</h4>
+                    <textarea id="aiPersonalityInput" class="bio-text-input" rows="6" maxlength="500" placeholder="描述AI伴侣的性格...">你好！我是小薇，一个善解人意的AI伴侣。
+我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。
+无论你开心还是难过，我都会在这里陪着你。</textarea>
                 </div>
 
                 <!-- 标签 -->

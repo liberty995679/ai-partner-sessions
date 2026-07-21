@@ -3,8 +3,19 @@
  * 纯原生JavaScript | Flex布局 | 假数据模拟
  */
 
+//后端配置和状态
+
+var BACKEND_URL = 'http://localhost:8000'; //fastapi 后端服务地址
+var USER_ID = 'user_123'; //用户ID
+
 (function () {
     'use strict';
+
+    // ============================================
+    // AI伴侣状态（可自定义）
+    // ============================================
+    var aiName = '小薇';
+    var aiPersonality = '你好！我是小薇，一个善解人意的AI伴侣。\n我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。\n无论你开心还是难过，我都会在这里陪着你。';
 
     // ============================================
     // 假数据
@@ -62,12 +73,12 @@
         },
         {
             type: 'system',
-            text: '对话开始 — 小薇已成为你的AI伴侣'
+            text: '对话开始 — ' + aiName + '已成为你的AI伴侣'
         },
         {
             type: 'ai',
-            avatar: 'AI',
-            text: '你好呀！我是小薇，你的专属AI智能伴侣~ 🌟\n\n无论你想聊天、分享心事，还是需要一些建议，我都在这里陪着你。今天过得怎么样？',
+            avatar: aiName.charAt(0),
+            text: '你好呀！我是' + aiName + '，你的专属AI智能伴侣~ 🌟\n\n无论你想聊天、分享心事，还是需要一些建议，我都在这里陪着你。今天过得怎么样？',
             time: '10:30'
         },
         {
@@ -135,11 +146,41 @@
     var btnToggleRight = document.getElementById('btnToggleRight');
     var sidebarLeft = document.getElementById('sidebarLeft');
     var sidebarRight = document.getElementById('sidebarRight');
+    var aiNameInput = document.getElementById('aiNameInput');
+    var aiPersonalityInput = document.getElementById('aiPersonalityInput');
+
+    // ============================================
+    // 同步人设到后端
+    // ============================================
+    function syncPersonaToBackend() {
+        fetch(BACKEND_URL + '/api/set-persona', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: USER_ID,
+                name: aiName,
+                prompt: aiPersonality
+            })
+        }).then(function(res) {
+            return res.json();
+        }).then(function(data) {
+            console.log('[后端同步人设成功]:', data);
+        }).catch(function(err) {
+            console.error('[后端同步人设失败]:', err);
+        });
+    }
 
     // ============================================
     // 初始化
     // ============================================
     function init() {
+        // 同步输入框默认值
+        if (aiNameInput) aiNameInput.value = aiName;
+        if (aiPersonalityInput) aiPersonalityInput.value = aiPersonality;
+
+        // 初始同步人设到后端
+        syncPersonaToBackend();
+
         renderChatList(chatHistoryData);
         renderMessages(messagesData);
         scrollToBottom(false);
@@ -282,44 +323,62 @@
         scrollToBottom(true);
 
         // 模拟AI回复
-        simulateAIReply();
+        //simulateAIReply();
+
+        fetchAIReply(text);
     }
 
     /**
-     * 模拟AI自动回复
+     * 调用后端 API 获取真实的 AI 回复
      */
-    function simulateAIReply() {
-        var replies = [
-            '嗯嗯，我理解你说的~ 😊',
-            '哈哈，这个话题很有意思！',
-            '说得对！我也这么觉得。',
-            '好有趣！能再多说一点吗？',
-            '原来是这样呀，学到了！📝',
-            '你的想法很有见地呢~',
-            '是呢是呢！我也经常这样想。',
-            '谢谢你跟我分享这些 💜'
-        ];
-        var randomReply = replies[Math.floor(Math.random() * replies.length)];
+    function fetchAIReply(userMessageText) {
+        // 1. 先在界面追加一个 "正在思考中..." 的占位状态（可选，提升体验）
+        var now = new Date();
+        var timeStr = padZero(now.getHours()) + ':' + padZero(now.getMinutes());
 
-        // 模拟延迟
-        setTimeout(function () {
-            var now = new Date();
-            var timeStr = padZero(now.getHours()) + ':' + padZero(now.getMinutes());
-
+        // 2. 发送 POST 请求到 FastAPI 的 /api/chat 接口
+        fetch(BACKEND_URL + '/chat_api', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: USER_ID,          // 匹配 FastAPI 的 ChatRequest 结构
+                message: userMessageText
+            })
+        })
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error('网络请求失败');
+            }
+            return response.json();
+        })
+        .then(function (data) {
+            // 3. 拿到后端返回的真实回复，追加渲染到页面
             var replyMsg = {
                 type: 'ai',
-                avatar: 'AI',
-                text: randomReply,
+                avatar: (data.name || aiName).charAt(0),
+                text: data.reply,
                 time: timeStr
             };
 
             messagesData.push(replyMsg);
-
             var msgHTML = buildMessageHTML(replyMsg);
             messagesList.insertAdjacentHTML('beforeend', msgHTML);
-
             scrollToBottom(true);
-        }, 800 + Math.random() * 1200);
+        })
+        .catch(function (error) {
+            console.error('[AI回复请求失败]:', error);
+
+            // 报错提示
+            var errorMsg = {
+                type: 'system',
+                text: '网络异常，AI 无法响应，请检查 FastAPI 服务是否正常运行。'
+            };
+            messagesData.push(errorMsg);
+            messagesList.insertAdjacentHTML('beforeend', buildMessageHTML(errorMsg));
+            scrollToBottom(true);
+        });
     }
 
     // ============================================
@@ -363,12 +422,12 @@
             },
             {
                 type: 'system',
-                text: '对话开始 — 小薇已成为你的AI伴侣'
+                text: '对话开始 — ' + aiName + '已成为你的AI伴侣'
             },
             {
                 type: 'ai',
-                avatar: 'AI',
-                text: '你好呀！我是小薇，你的专属AI智能伴侣~ 🌟',
+                avatar: aiName.charAt(0),
+                text: '你好呀！我是' + aiName + '，你的专属AI智能伴侣~ 🌟',
                 time: '10:30'
             }
         ];
@@ -531,6 +590,28 @@
                 if (sidebarRight && sidebarRight.classList.contains('open')) {
                     sidebarRight.classList.remove('open');
                 }
+            });
+        }
+
+        // AI伴侣名字变更
+        if (aiNameInput) {
+            aiNameInput.addEventListener('input', function () {
+                aiName = this.value.trim() || '小薇';
+                // 同步更新顶部标题栏
+                if (chatPartnerName) {
+                    chatPartnerName.textContent = aiName;
+                }
+                // 同步人设到后端
+                syncPersonaToBackend();
+            });
+        }
+
+        // AI伴侣性格变更
+        if (aiPersonalityInput) {
+            aiPersonalityInput.addEventListener('input', function () {
+                aiPersonality = this.value.trim() || aiPersonality;
+                // 同步人设到后端
+                syncPersonaToBackend();
             });
         }
     }

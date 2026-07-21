@@ -7,7 +7,8 @@ import schemas
 import secrets
 import jwt
 import datetime
-
+import os
+from openai import OpenAI
 app = FastAPI()
 SECRET = secrets.token_hex(32)
 
@@ -19,6 +20,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 #模拟数据库
 USERDB = {"username":"小明","password":"123456"}
+db_user_personas = {}
 
 #渲染html
 def render_html(html_file: str) -> HTMLResponse:
@@ -61,6 +63,51 @@ def register(data: schemas.RegisterRequest):
 def chat():
     return render_html("chat.html")
 
+@app.post("/api/set-persona")
+async def set_persona(data: schemas.PersonaRequest):
+    db_user_personas[data.user_id] = {
+        "name": data.name,
+        "prompt": data.prompt
+    }
+    return {"code": 200, "msg": "设置成功"}
+
+
+# 2. 接收聊天消息的接口
+@app.post("/chat_api")
+async def chat(data: schemas.ChatRequest):
+    # 提取前端传来的 user_id 和 message
+    user_id = data.user_id
+    user_message = data.message
+
+    # 拿到该用户最新的 Prompt
+    persona = db_user_personas.get(
+        user_id,
+        {"name": "小薇", "prompt": "你叫小薇，是一个善解人意的AI伴侣。"}
+    )
+
+    # 这里调用你的大模型 API，把 persona["prompt"] 作为 System Prompt 传给模型...
+    client = OpenAI(
+        api_key=os.environ.get('DEEPSEEK_API_KEY'),
+        base_url="https://api.deepseek.com")
+
+    response = client.chat.completions.create(
+        model="deepseek-v4-pro",
+        messages=[
+            {"role": "system", "content": persona["prompt"] + RULES},
+            {"role": "user", "content": user_message},
+        ],
+        stream=False,
+        reasoning_effort="high",
+        extra_body={"thinking": {"type": "enabled"}}
+    )
+    reply = response.choices[0].message.content
+
+    return {
+        "status": "ok",
+        "name": persona["name"],
+        "reply": reply
+    }
+
 @app.get("/profile")
 def profile(x_token: str = Header(...)):
     token = x_token
@@ -72,7 +119,15 @@ def profile(x_token: str = Header(...)):
     except jwt.InvalidTokenError:
         return {"code": 400, "msg": "无效的token"}
 
-
+# 配置跨域
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 if __name__ == "__main__":
     import uvicorn
