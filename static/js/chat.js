@@ -170,6 +170,13 @@ var USER_ID = 'user_123'; //用户ID
         });
     }
 
+    // 防抖版：等用户停止输入 500ms 后再同步
+    var personaDebounceTimer = null;
+    function syncPersonaToBackendDebounced() {
+        clearTimeout(personaDebounceTimer);
+        personaDebounceTimer = setTimeout(syncPersonaToBackend, 500);
+    }
+
     // ============================================
     // 初始化
     // ============================================
@@ -601,8 +608,8 @@ var USER_ID = 'user_123'; //用户ID
                 if (chatPartnerName) {
                     chatPartnerName.textContent = aiName;
                 }
-                // 同步人设到后端
-                syncPersonaToBackend();
+                // 同步人设到后端（防抖）
+                syncPersonaToBackendDebounced();
             });
         }
 
@@ -610,8 +617,8 @@ var USER_ID = 'user_123'; //用户ID
         if (aiPersonalityInput) {
             aiPersonalityInput.addEventListener('input', function () {
                 aiPersonality = this.value.trim() || aiPersonality;
-                // 同步人设到后端
-                syncPersonaToBackend();
+                // 同步人设到后端（防抖）
+                syncPersonaToBackendDebounced();
             });
         }
     }

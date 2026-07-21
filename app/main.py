@@ -1,6 +1,5 @@
 from pathlib import Path
 from fastapi import FastAPI,HTTPException,Header
-from numpy.f2py import rules
 from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
@@ -22,6 +21,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 #模拟数据库
 USERDB = {"username":"小明","password":"123456"}
 db_user_personas = {}
+db_conversations = {} # 用户会话历史记录
 
 RULES = """
 【回复规则 - 严格遵守】
@@ -102,20 +102,31 @@ async def chat(data: schemas.ChatRequest):
         api_key=os.environ.get('DEEPSEEK_API_KEY'),
         base_url="https://api.deepseek.com")
 
+    # 获取该用户的对话历史，没有就初始化空列表
+    if user_id not in db_conversations:
+        db_conversations[user_id] = []
+    history = db_conversations[user_id]
+
     rules = RULES.replace("{name}",persona["name"])
+
+    # 正确构建 messages：system + 历史 + 当前消息
+    messages = [
+        {"role": "system", "content": persona["prompt"] + rules},
+    ]
+    messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
 
     response = client.chat.completions.create(
         model="deepseek-v4-pro",
-        messages=[
-            {"role": "system", "content": persona["prompt"] + rules},
-            {"role": "user", "content": user_message},
-        ],
-        stream=False,
+        messages=messages,
+        stream=True,
         reasoning_effort="high",
         extra_body={"thinking": {"type": "enabled"}}
     )
     reply = response.choices[0].message.content
-
+    history.append({"role": "user", "content": user_message})
+    history.append({"role": "assistant", "content": reply})
+    db_conversations[user_id] = history
     return {
         "status": "ok",
         "name": persona["name"],
