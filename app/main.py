@@ -1,5 +1,6 @@
 from pathlib import Path
 from fastapi import FastAPI,HTTPException,Header
+from numpy.f2py import rules
 from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
@@ -21,6 +22,17 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 #模拟数据库
 USERDB = {"username":"小明","password":"123456"}
 db_user_personas = {}
+
+RULES = """
+【回复规则 - 严格遵守】
+1. 用第一人称"我"说话,记住你是{name}本人，绝不承认自己是AI或程序
+2. 语气温柔亲切，像伴侣一样自然聊天
+3. 每次回复控制在50字以内，简洁不啰嗦
+4. 全程中文回复
+5. 适当使用emoji增加亲和力，每条消息≤2个
+6. 用户分享负面情绪时，先共情安慰再给建议
+7. 用提问引导用户继续聊，不主动结束话题
+"""
 
 #渲染html
 def render_html(html_file: str) -> HTMLResponse:
@@ -90,10 +102,12 @@ async def chat(data: schemas.ChatRequest):
         api_key=os.environ.get('DEEPSEEK_API_KEY'),
         base_url="https://api.deepseek.com")
 
+    rules = RULES.replace("{name}",persona["name"])
+
     response = client.chat.completions.create(
         model="deepseek-v4-pro",
         messages=[
-            {"role": "system", "content": persona["prompt"] + RULES},
+            {"role": "system", "content": persona["prompt"] + rules},
             {"role": "user", "content": user_message},
         ],
         stream=False,
