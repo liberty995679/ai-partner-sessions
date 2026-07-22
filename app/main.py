@@ -11,7 +11,7 @@ import os
 from openai import AsyncOpenAI
 
 #导入数据库函数
-from database import init_db,create_user,get_user,verify_user
+from database import init_db,create_user,get_user,verify_user,delete_user_by_id
 
 app = FastAPI()
 SECRET = secrets.token_hex(32)
@@ -107,10 +107,24 @@ async def list_users():
     from database import get_connection
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("select id, username, created_at from users")
+    cursor.execute("select id, username, password, created_at from users")
     users = cursor.fetchall()
     conn.close()
     return {"users":[dict(u) for u in users]}
+
+#管理页面路由和删除接口
+@app.get("/admin")
+def admin():
+    return render_html("admin.html")
+
+#删除用户
+@app.delete("/api/users/{user_id}")
+async def delete_user(user_id: int):
+    """删除指定用户"""
+    from database import delete_user_by_id
+    if delete_user_by_id(user_id):
+        return {"code": 200, "msg": "删除成功"}
+    raise HTTPException(status_code=404, detail="用户不存在")
 
 # 2. 接收聊天消息的接口
 @app.post("/chat_api")

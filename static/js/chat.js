@@ -1,153 +1,59 @@
 /**
  * AI智能伴侣 - 聊天页面脚本
- * 纯原生JavaScript | Flex布局 | 假数据模拟
+ * 纯原生JavaScript | Flex布局 | 数据库持久化
  */
-
-//后端配置和状态
-
-var BACKEND_URL = 'http://localhost:8000'; //fastapi 后端服务地址
-var USER_ID = 'user_123'; //用户ID
-
 (function () {
     'use strict';
 
     // ============================================
-    // AI伴侣状态（可自定义）
+    // 后端配置和状态
     // ============================================
+    var BACKEND_URL = 'http://localhost:8000';
+    var USER_ID = 'user_123';   // 后续登录后可替换为真实用户ID
     var aiName = '小薇';
     var aiPersonality = '你好！我是小薇，一个善解人意的AI伴侣。\n我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。\n无论你开心还是难过，我都会在这里陪着你。';
 
     // ============================================
-    // 假数据
+    // 运行时状态（不再有假数据）
     // ============================================
-
-    // 对话列表数据
-    var chatHistoryData = [
-        {
-            id: 1,
-            name: 'AI 智能伴侣',
-            preview: '嗯，我也觉得那本书很有意思！',
-            time: '14:32',
-            unread: true,
-            active: true
-        },
-        {
-            id: 2,
-            name: '每日心情',
-            preview: '今天天气不错，适合出去走走~',
-            time: '昨天',
-            unread: false,
-            active: false
-        },
-        {
-            id: 3,
-            name: '学习助手',
-            preview: '这道题的解题思路是这样的...',
-            time: '昨天',
-            unread: false,
-            active: false
-        },
-        {
-            id: 4,
-            name: '故事时间',
-            preview: '很久很久以前，在一个遥远的星系...',
-            time: '周三',
-            unread: false,
-            active: false
-        },
-        {
-            id: 5,
-            name: '音乐推荐',
-            preview: '根据你的喜好，推荐这首轻音乐',
-            time: '周二',
-            unread: false,
-            active: false
-        }
-    ];
-
-    // 消息数据
-    var messagesData = [
-        {
-            type: 'date',
-            text: '2026年7月17日'
-        },
-        {
-            type: 'system',
-            text: '对话开始 — ' + aiName + '已成为你的AI伴侣'
-        },
-        {
-            type: 'ai',
-            avatar: aiName.charAt(0),
-            text: '你好呀！我是' + aiName + '，你的专属AI智能伴侣~ 🌟\n\n无论你想聊天、分享心事，还是需要一些建议，我都在这里陪着你。今天过得怎么样？',
-            time: '10:30'
-        },
-        {
-            type: 'user',
-            avatar: '我',
-            text: '嗨小薇！今天心情还不错，刚看了一本很有意思的科幻小说。',
-            time: '10:32'
-        },
-        {
-            type: 'ai',
-            avatar: 'AI',
-            text: '哇，科幻小说！📚 是哪一本呀？我也很喜欢科幻题材，特别是关于人工智能和未来世界的设定，总觉得那些想象离我们越来越近了~',
-            time: '10:33'
-        },
-        {
-            type: 'user',
-            avatar: '我',
-            text: '是《三体》！虽然之前看过，但重读又有新的感悟。',
-            time: '10:35'
-        },
-        {
-            type: 'ai',
-            avatar: 'AI',
-            text: '《三体》真的是经典中的经典！✨ 黑暗森林法则、降维打击这些概念太震撼了。你最喜欢里面的哪个角色？是逻辑严密的罗辑，还是充满理想主义的程心？',
-            time: '10:36'
-        },
-        {
-            type: 'user',
-            avatar: '我',
-            text: '我最喜欢罗辑，他的成长弧线太精彩了。从一个普通学者到执剑人，整个转变过程让人印象深刻。',
-            time: '10:38'
-        },
-        {
-            type: 'ai',
-            avatar: 'AI',
-            text: '完全同意！罗辑从一个"不靠谱"的天文学家，到承担起人类命运的执剑人，这个角色塑造得非常丰满。\n\n特别是他在湖边悟出黑暗森林法则的那一段，真的是整部小说的精髓所在。有时候最深刻的理解，反而来自最简单的观察。🌌',
-            time: '10:40'
-        },
-        {
-            type: 'user',
-            avatar: '我',
-            text: '说得太好了！对了小薇，你能给我推荐一些类似风格的科幻作品吗？',
-            time: '10:42'
-        },
-        {
-            type: 'ai',
-            avatar: 'AI',
-            text: '当然可以！如果你喜欢硬科幻和宏大叙事，我推荐这几本：\n\n📖 《基地》系列 - 阿西莫夫\n📖 《海伯利安》 - 丹·西蒙斯\n📖 《你一生的故事》 - 特德·姜\n📖 《球状闪电》 - 也是刘慈欣的\n\n每一本都有独特的魅力，特别是特德·姜的短篇，文字优美又充满哲思。你想先了解哪一本？😊',
-            time: '10:44'
-        }
-    ];
+    var conversations = [];           // 对话列表 [{id, name, preview, time, unread, active}]
+    var currentConversationId = null; // 当前激活的对话ID
+    var messagesCache = {};           // { convId: [messageObjects] }
+    var isLoadingMessages = false;    // 防止重复加载
 
     // ============================================
-    // DOM 元素
+    // API 封装（留着等后端实现）
     // ============================================
-    var chatList = document.getElementById('chatList');
-    var messagesList = document.getElementById('messagesList');
-    var messagesArea = document.getElementById('messagesArea');
-    var messageInput = document.getElementById('messageInput');
-    var sendBtn = document.getElementById('sendBtn');
-    var newChatBtn = document.getElementById('newChatBtn');
-    var searchChat = document.getElementById('searchChat');
-    var chatPartnerName = document.getElementById('chatPartnerName');
-    var btnToggleLeft = document.getElementById('btnToggleLeft');
-    var btnToggleRight = document.getElementById('btnToggleRight');
-    var sidebarLeft = document.getElementById('sidebarLeft');
-    var sidebarRight = document.getElementById('sidebarRight');
-    var aiNameInput = document.getElementById('aiNameInput');
-    var aiPersonalityInput = document.getElementById('aiPersonalityInput');
+
+    /** 获取对话列表 */
+    function apiGetConversations() {
+        return fetch(BACKEND_URL + '/api/conversations?user_id=' + encodeURIComponent(USER_ID))
+            .then(function (r) { if (!r.ok) throw new Error('加载对话列表失败'); return r.json(); });
+    }
+
+    /** 创建新对话 → 返回 {id, name, created_at} */
+    function apiCreateConversation(name) {
+        return fetch(BACKEND_URL + '/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: USER_ID, name: name })
+        }).then(function (r) { if (!r.ok) throw new Error('创建对话失败'); return r.json(); });
+    }
+
+    /** 获取某个对话的所有消息 */
+    function apiGetMessages(convId) {
+        return fetch(BACKEND_URL + '/api/conversations/' + convId + '/messages?user_id=' + encodeURIComponent(USER_ID))
+            .then(function (r) { if (!r.ok) throw new Error('加载消息失败'); return r.json(); });
+    }
+
+    /** 新增一条消息 */
+    function apiAddMessage(convId, role, content) {
+        return fetch(BACKEND_URL + '/api/conversations/' + convId + '/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: USER_ID, role: role, content: content })
+        }).then(function (r) { if (!r.ok) throw new Error('保存消息失败'); return r.json(); });
+    }
 
     // ============================================
     // 同步人设到后端
@@ -156,21 +62,12 @@ var USER_ID = 'user_123'; //用户ID
         fetch(BACKEND_URL + '/api/set-persona', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: USER_ID,
-                name: aiName,
-                prompt: aiPersonality
-            })
-        }).then(function(res) {
-            return res.json();
-        }).then(function(data) {
-            console.log('[后端同步人设成功]:', data);
-        }).catch(function(err) {
-            console.error('[后端同步人设失败]:', err);
-        });
+            body: JSON.stringify({ user_id: USER_ID, name: aiName, prompt: aiPersonality })
+        }).then(function (res) { return res.json(); })
+          .then(function (data) { console.log('[后端同步人设成功]:', data); })
+          .catch(function (err) { console.error('[后端同步人设失败]:', err); });
     }
 
-    // 防抖版：等用户停止输入 500ms 后再同步
     var personaDebounceTimer = null;
     function syncPersonaToBackendDebounced() {
         clearTimeout(personaDebounceTimer);
@@ -178,20 +75,108 @@ var USER_ID = 'user_123'; //用户ID
     }
 
     // ============================================
+    // DOM 元素
+    // ============================================
+    var chatList       = document.getElementById('chatList');
+    var messagesList   = document.getElementById('messagesList');
+    var messagesArea   = document.getElementById('messagesArea');
+    var messageInput   = document.getElementById('messageInput');
+    var sendBtn        = document.getElementById('sendBtn');
+    var newChatBtn     = document.getElementById('newChatBtn');
+    var searchChat     = document.getElementById('searchChat');
+    var chatPartnerName = document.getElementById('chatPartnerName');
+    var btnToggleLeft  = document.getElementById('btnToggleLeft');
+    var btnToggleRight = document.getElementById('btnToggleRight');
+    var sidebarLeft    = document.getElementById('sidebarLeft');
+    var sidebarRight   = document.getElementById('sidebarRight');
+    var aiNameInput    = document.getElementById('aiNameInput');
+    var aiPersonalityInput = document.getElementById('aiPersonalityInput');
+
+    // ============================================
+    // 时间格式化工具
+    // ============================================
+    function formatChatTime(isoStr) {
+        if (!isoStr) return '';
+        var d = new Date(isoStr);
+        var now = new Date();
+        var h = padZero(d.getHours());
+        var m = padZero(d.getMinutes());
+
+        if (isSameDay(d, now)) return h + ':' + m;
+
+        var yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (isSameDay(d, yesterday)) return '昨天';
+
+        var weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+        var diffDays = Math.floor((now - d) / 86400000);
+        if (diffDays < 7 && d.getDay() !== now.getDay()) return weekdays[d.getDay()];
+
+        return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+
+    function isSameDay(a, b) {
+        return a.getFullYear() === b.getFullYear() &&
+               a.getMonth() === b.getMonth() &&
+               a.getDate() === b.getDate();
+    }
+
+    function formatDateDivider(isoStr) {
+        if (!isoStr) return '';
+        var d = new Date(isoStr);
+        return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+
+    function padZero(num) {
+        return num < 10 ? '0' + num : '' + num;
+    }
+
+    function getNowISO() {
+        return new Date().toISOString();
+    }
+
+    function getNowTimeStr() {
+        var d = new Date();
+        return padZero(d.getHours()) + ':' + padZero(d.getMinutes());
+    }
+
+    // ============================================
     // 初始化
     // ============================================
     function init() {
-        // 同步输入框默认值
         if (aiNameInput) aiNameInput.value = aiName;
         if (aiPersonalityInput) aiPersonalityInput.value = aiPersonality;
-
-        // 初始同步人设到后端
         syncPersonaToBackend();
-
-        renderChatList(chatHistoryData);
-        renderMessages(messagesData);
-        scrollToBottom(false);
         bindEvents();
+
+        // 尝试从后端加载对话列表
+        loadConversationsFromServer();
+    }
+
+    /** 从后端加载对话列表 */
+    function loadConversationsFromServer() {
+        apiGetConversations()
+            .then(function (data) {
+                if (data.conversations && data.conversations.length > 0) {
+                    conversations = data.conversations.map(function (c) {
+                        c.time = formatChatTime(c.updated_at || c.created_at);
+                        c.active = false;
+                        c.unread = false;
+                        return c;
+                    });
+                    renderChatList(conversations);
+                    // 自动打开第一个对话
+                    switchConversation(conversations[0].id);
+                } else {
+                    // 没有任何对话 → 自动创建一个
+                    createNewChat();
+                }
+            })
+            .catch(function (err) {
+                console.warn('[加载对话列表失败，使用本地模式]:', err);
+                // 降级：本地模式，直接创建第一个对话
+                createNewChatLocal();
+            });
     }
 
     // ============================================
@@ -200,33 +185,36 @@ var USER_ID = 'user_123'; //用户ID
     function renderChatList(data) {
         if (!chatList) return;
 
+        if (data.length === 0) {
+            chatList.innerHTML = '<div style="text-align:center;color:var(--color-text-dim);padding:40px 12px;font-size:0.85rem;">暂无对话<br>点击下方按钮开始</div>';
+            return;
+        }
+
         var html = '';
         for (var i = 0; i < data.length; i++) {
             var item = data[i];
             var activeClass = item.active ? ' active' : '';
             var badgeHtml = item.unread ? '<span class="chat-item-badge"></span>' : '';
-            // 取名字首字作为头像文字
-            var avatarText = item.name.charAt(0);
+            var avatarText = (item.name || '对话').charAt(0);
 
             html +=
                 '<div class="chat-item' + activeClass + '" data-id="' + item.id + '">' +
                     '<div class="chat-item-avatar">' + escapeHtml(avatarText) + '</div>' +
                     '<div class="chat-item-content">' +
                         '<div class="chat-item-name">' + escapeHtml(item.name) + '</div>' +
-                        '<div class="chat-item-preview">' + escapeHtml(item.preview) + '</div>' +
+                        '<div class="chat-item-preview">' + escapeHtml(item.preview || '') + '</div>' +
                     '</div>' +
-                    '<span class="chat-item-time">' + escapeHtml(item.time) + '</span>' +
+                    '<span class="chat-item-time">' + escapeHtml(item.time || '') + '</span>' +
                     badgeHtml +
                 '</div>';
         }
         chatList.innerHTML = html;
 
-        // 绑定点击事件
         var items = chatList.querySelectorAll('.chat-item');
         for (var j = 0; j < items.length; j++) {
             items[j].addEventListener('click', function () {
-                var id = parseInt(this.getAttribute('data-id'));
-                switchChat(id);
+                var id = this.getAttribute('data-id');
+                if (id) switchConversation(id);
             });
         }
     }
@@ -236,26 +224,26 @@ var USER_ID = 'user_123'; //用户ID
     // ============================================
     function renderMessages(data) {
         if (!messagesList) return;
-
         var html = '';
+        var lastDate = '';
         for (var i = 0; i < data.length; i++) {
-            html += buildMessageHTML(data[i]);
+            var msg = data[i];
+            var msgDate = msg.created_at ? formatDateDivider(msg.created_at) : '';
+            if (msgDate && msgDate !== lastDate) {
+                html += '<div class="date-divider"><span>' + escapeHtml(msgDate) + '</span></div>';
+                lastDate = msgDate;
+            }
+            html += buildMessageHTML(msg);
         }
         messagesList.innerHTML = html;
     }
 
     /**
-     * 根据消息类型构建HTML
+     * 根据消息对象构建HTML
+     * msg: { type, avatar, text, time }
      */
     function buildMessageHTML(msg) {
         switch (msg.type) {
-            case 'date':
-                return (
-                    '<div class="date-divider">' +
-                        '<span>' + escapeHtml(msg.text) + '</span>' +
-                    '</div>'
-                );
-
             case 'system':
                 return (
                     '<div class="message-system">' +
@@ -266,10 +254,10 @@ var USER_ID = 'user_123'; //用户ID
             case 'ai':
                 return (
                     '<div class="message-row ai">' +
-                        '<div class="message-avatar">' + escapeHtml(msg.avatar) + '</div>' +
+                        '<div class="message-avatar">' + escapeHtml(msg.avatar || aiName.charAt(0)) + '</div>' +
                         '<div>' +
                             '<div class="message-bubble">' + formatMessageText(msg.text) + '</div>' +
-                            '<div class="message-time">' + escapeHtml(msg.time) + '</div>' +
+                            '<div class="message-time">' + escapeHtml(msg.time || '') + '</div>' +
                         '</div>' +
                     '</div>'
                 );
@@ -277,10 +265,10 @@ var USER_ID = 'user_123'; //用户ID
             case 'user':
                 return (
                     '<div class="message-row user">' +
-                        '<div class="message-avatar">' + escapeHtml(msg.avatar) + '</div>' +
+                        '<div class="message-avatar">' + escapeHtml(msg.avatar || '我') + '</div>' +
                         '<div>' +
                             '<div class="message-bubble">' + formatMessageText(msg.text) + '</div>' +
-                            '<div class="message-time">' + escapeHtml(msg.time) + '</div>' +
+                            '<div class="message-time">' + escapeHtml(msg.time || '') + '</div>' +
                         '</div>' +
                     '</div>'
                 );
@@ -290,11 +278,171 @@ var USER_ID = 'user_123'; //用户ID
         }
     }
 
-    /**
-     * 格式化消息文本（换行转<br>）
-     */
     function formatMessageText(text) {
         return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    // ============================================
+    // 切换对话
+    // ============================================
+    function switchConversation(convId) {
+        if (isLoadingMessages) return;
+
+        // 已经是当前对话
+        if (currentConversationId === convId) return;
+
+        currentConversationId = convId;
+
+        // 更新激活状态
+        for (var i = 0; i < conversations.length; i++) {
+            conversations[i].active = (String(conversations[i].id) === String(convId));
+            conversations[i].unread = false;
+        }
+        renderChatList(conversations);
+
+        // 更新顶部标题
+        var target = findConversationById(convId);
+        if (target && chatPartnerName) {
+            chatPartnerName.textContent = target.name;
+        }
+
+        // 若已有缓存则直接渲染
+        if (messagesCache[convId]) {
+            renderMessages(messagesCache[convId]);
+            scrollToBottom(false);
+            return;
+        }
+
+        // 从后端加载消息
+        isLoadingMessages = true;
+        messagesList.innerHTML = '<div class="message-system"><span class="system-text">加载消息中...</span></div>';
+
+        apiGetMessages(convId)
+            .then(function (data) {
+                var msgs = data.messages || [];
+                // 转换后端格式 → 前端格式
+                msgs = msgs.map(function (m) {
+                    return {
+                        type: m.role === 'user' ? 'user' : 'ai',
+                        avatar: m.role === 'user' ? '我' : (aiName.charAt(0)),
+                        text: m.content,
+                        time: formatChatTime(m.created_at),
+                        created_at: m.created_at
+                    };
+                });
+                messagesCache[convId] = msgs;
+                renderMessages(msgs);
+                scrollToBottom(false);
+                isLoadingMessages = false;
+            })
+            .catch(function (err) {
+                console.error('[加载消息失败]:', err);
+                messagesCache[convId] = [{
+                    type: 'system',
+                    text: '对话开始 — ' + aiName + '已成为你的AI伴侣'
+                }];
+                renderMessages(messagesCache[convId]);
+                isLoadingMessages = false;
+            });
+    }
+
+    function findConversationById(id) {
+        for (var i = 0; i < conversations.length; i++) {
+            if (String(conversations[i].id) === String(id)) return conversations[i];
+        }
+        return null;
+    }
+
+    // ============================================
+    // 新建对话 — 编号规则：对话001, 对话002...
+    // ============================================
+    function createNewChat() {
+        // 计算下一个编号
+        var maxNum = 0;
+        for (var i = 0; i < conversations.length; i++) {
+            var match = conversations[i].name && conversations[i].name.match(/^对话(\d+)$/);
+            if (match) {
+                var num = parseInt(match[1], 10);
+                if (num > maxNum) maxNum = num;
+            }
+        }
+        var newNum = maxNum + 1;
+        var newName = '对话' + padNumber(newNum, 3);  // 对话001, 对话002...
+
+        apiCreateConversation(newName)
+            .then(function (data) {
+                var conv = {
+                    id: data.id,
+                    name: newName,
+                    preview: '',
+                    time: '刚刚',
+                    unread: false,
+                    active: true,
+                    created_at: data.created_at || getNowISO()
+                };
+                // 取消其他激活
+                for (var k = 0; k < conversations.length; k++) {
+                    conversations[k].active = false;
+                }
+                // 插入头部
+                conversations.unshift(conv);
+                renderChatList(conversations);
+                activateConversation(conv);
+            })
+            .catch(function (err) {
+                console.warn('[创建对话失败，使用本地模式]:', err);
+                createNewChatLocal(newName);
+            });
+    }
+
+    /** 降级：本地模式创建对话 */
+    function createNewChatLocal(optName) {
+        var maxNum = 0;
+        for (var i = 0; i < conversations.length; i++) {
+            var match = conversations[i].name && conversations[i].name.match(/^对话(\d+)$/);
+            if (match) {
+                var num = parseInt(match[1], 10);
+                if (num > maxNum) maxNum = num;
+            }
+        }
+        // 同时检查本地缓存里已用过但未保存到列表的
+        var name = optName || ('对话' + padNumber(maxNum + 1, 3));
+        var conv = {
+            id: 'local_' + Date.now(),
+            name: name,
+            preview: '',
+            time: '刚刚',
+            unread: false,
+            active: true,
+            created_at: getNowISO()
+        };
+        for (var k = 0; k < conversations.length; k++) {
+            conversations[k].active = false;
+        }
+        conversations.unshift(conv);
+        renderChatList(conversations);
+        activateConversation(conv);
+    }
+
+    function padNumber(num, width) {
+        var s = String(num);
+        while (s.length < width) s = '0' + s;
+        return s;
+    }
+
+    /** 激活一个对话（设置消息区） */
+    function activateConversation(conv) {
+        currentConversationId = conv.id;
+        if (chatPartnerName) chatPartnerName.textContent = conv.name;
+
+        messagesCache[conv.id] = [{
+            type: 'system',
+            text: '新对话已创建 — 开始和' + aiName + '聊天吧！',
+            created_at: conv.created_at
+        }];
+        renderMessages(messagesCache[conv.id]);
+        scrollToBottom(false);
+        if (messageInput) messageInput.focus();
     }
 
     // ============================================
@@ -303,87 +451,115 @@ var USER_ID = 'user_123'; //用户ID
     function sendMessage() {
         var text = messageInput.value.trim();
         if (!text) return;
+        if (!currentConversationId) {
+            // 还没对话 → 先创建一个
+            createNewChat();
+            return;
+        }
 
-        // 获取当前时间
-        var now = new Date();
-        var timeStr = padZero(now.getHours()) + ':' + padZero(now.getMinutes());
+        var timeStr = getNowTimeStr();
+        var nowISO = getNowISO();
 
-        // 构建新消息
         var newMsg = {
             type: 'user',
             avatar: '我',
             text: text,
-            time: timeStr
+            time: timeStr,
+            created_at: nowISO
         };
 
-        // 添加到数据
-        messagesData.push(newMsg);
+        // 缓存
+        if (!messagesCache[currentConversationId]) {
+            messagesCache[currentConversationId] = [];
+        }
+        messagesCache[currentConversationId].push(newMsg);
 
         // 追加到DOM
-        var msgHTML = buildMessageHTML(newMsg);
-        messagesList.insertAdjacentHTML('beforeend', msgHTML);
-
-        // 清空输入框
-        messageInput.value = '';
-
-        // 滚动到底部
+        messagesList.insertAdjacentHTML('beforeend', buildMessageHTML(newMsg));
         scrollToBottom(true);
 
-        // 模拟AI回复
-        //simulateAIReply();
+        // 更新对话列表预览
+        updateConversationPreview(currentConversationId, text);
 
+        // 清空输入
+        messageInput.value = '';
+
+        // 尝试保存到后端（异步，不阻塞UI）
+        apiAddMessage(currentConversationId, 'user', text).catch(function () {
+            // 静默失败，消息已在前端缓存
+        });
+
+        // 请求AI回复
         fetchAIReply(text);
     }
 
-    /**
-     * 调用后端 API 获取真实的 AI 回复
-     */
-    function fetchAIReply(userMessageText) {
-        // 1. 先在界面追加一个 "正在思考中..." 的占位状态（可选，提升体验）
-        var now = new Date();
-        var timeStr = padZero(now.getHours()) + ':' + padZero(now.getMinutes());
+    /** 更新对话列表中的预览文字和时间 */
+    function updateConversationPreview(convId, previewText) {
+        for (var i = 0; i < conversations.length; i++) {
+            if (String(conversations[i].id) === String(convId)) {
+                conversations[i].preview = previewText.length > 30 ? previewText.slice(0, 30) + '...' : previewText;
+                conversations[i].time = '刚刚';
+                break;
+            }
+        }
+        renderChatList(conversations);
+    }
 
-        // 2. 发送 POST 请求到 FastAPI 的 /api/chat 接口
+    // ============================================
+    // 调用后端获取AI回复
+    // ============================================
+    function fetchAIReply(userMessageText) {
+        var timeStr = getNowTimeStr();
+        var nowISO = getNowISO();
+
         fetch(BACKEND_URL + '/chat_api', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: USER_ID,          // 匹配 FastAPI 的 ChatRequest 结构
-                message: userMessageText
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: USER_ID, message: userMessageText })
         })
         .then(function (response) {
-            if (!response.ok) {
-                throw new Error('网络请求失败');
-            }
+            if (!response.ok) throw new Error('网络请求失败');
             return response.json();
         })
         .then(function (data) {
-            // 3. 拿到后端返回的真实回复，追加渲染到页面
+            var replyText = data.reply || '';
+            var replyName = data.name || aiName;
+
             var replyMsg = {
                 type: 'ai',
-                avatar: (data.name || aiName).charAt(0),
-                text: data.reply,
-                time: timeStr
+                avatar: replyName.charAt(0),
+                text: replyText,
+                time: timeStr,
+                created_at: nowISO
             };
 
-            messagesData.push(replyMsg);
-            var msgHTML = buildMessageHTML(replyMsg);
-            messagesList.insertAdjacentHTML('beforeend', msgHTML);
+            if (!messagesCache[currentConversationId]) {
+                messagesCache[currentConversationId] = [];
+            }
+            messagesCache[currentConversationId].push(replyMsg);
+
+            messagesList.insertAdjacentHTML('beforeend', buildMessageHTML(replyMsg));
             scrollToBottom(true);
+
+            // 更新预览
+            updateConversationPreview(currentConversationId, replyText);
+
+            // 保存到后端
+            apiAddMessage(currentConversationId, 'assistant', replyText).catch(function () {
+                // 静默失败
+            });
         })
         .catch(function (error) {
             console.error('[AI回复请求失败]:', error);
-
-            // 报错提示
-            var errorMsg = {
+            var errMsg = {
                 type: 'system',
-                text: '网络异常，AI 无法响应，请检查 FastAPI 服务是否正常运行。'
+                text: '网络异常，AI无法响应，请检查服务是否正常运行。'
             };
-            messagesData.push(errorMsg);
-            messagesList.insertAdjacentHTML('beforeend', buildMessageHTML(errorMsg));
+            if (!messagesCache[currentConversationId]) {
+                messagesCache[currentConversationId] = [];
+            }
+            messagesCache[currentConversationId].push(errMsg);
+            messagesList.insertAdjacentHTML('beforeend', buildMessageHTML(errMsg));
             scrollToBottom(true);
         });
     }
@@ -393,109 +569,10 @@ var USER_ID = 'user_123'; //用户ID
     // ============================================
     function scrollToBottom(smooth) {
         if (!messagesArea) return;
-
         if (smooth) {
-            messagesArea.scrollTo({
-                top: messagesArea.scrollHeight,
-                behavior: 'smooth'
-            });
+            messagesArea.scrollTo({ top: messagesArea.scrollHeight, behavior: 'smooth' });
         } else {
             messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
-    }
-
-    // ============================================
-    // 切换对话
-    // ============================================
-    function switchChat(id) {
-        // 更新激活状态
-        for (var i = 0; i < chatHistoryData.length; i++) {
-            chatHistoryData[i].active = (chatHistoryData[i].id === id);
-            chatHistoryData[i].unread = false;
-        }
-        renderChatList(chatHistoryData);
-
-        // 更新标题
-        var target = findChatById(id);
-        if (target && chatPartnerName) {
-            chatPartnerName.textContent = target.name;
-        }
-
-        // 模拟加载消息
-        messagesData = [
-            {
-                type: 'date',
-                text: '2026年7月17日'
-            },
-            {
-                type: 'system',
-                text: '对话开始 — ' + aiName + '已成为你的AI伴侣'
-            },
-            {
-                type: 'ai',
-                avatar: aiName.charAt(0),
-                text: '你好呀！我是' + aiName + '，你的专属AI智能伴侣~ 🌟',
-                time: '10:30'
-            }
-        ];
-        renderMessages(messagesData);
-        scrollToBottom(false);
-
-        console.log('切换对话:', id);
-    }
-
-    function findChatById(id) {
-        for (var i = 0; i < chatHistoryData.length; i++) {
-            if (chatHistoryData[i].id === id) return chatHistoryData[i];
-        }
-        return null;
-    }
-
-    // ============================================
-    // 新建对话
-    // ============================================
-    function createNewChat() {
-        console.log('新建对话');
-
-        var newId = chatHistoryData.length + 1;
-
-        var newChat = {
-            id: newId,
-            name: '新对话 ' + newId,
-            preview: '点击开始对话...',
-            time: '刚刚',
-            unread: false,
-            active: true
-        };
-
-        // 取消其他激活
-        for (var i = 0; i < chatHistoryData.length; i++) {
-            chatHistoryData[i].active = false;
-        }
-
-        // 插入到列表最前面
-        chatHistoryData.unshift(newChat);
-
-        // 重新渲染
-        renderChatList(chatHistoryData);
-
-        // 清空消息区
-        if (chatPartnerName) {
-            chatPartnerName.textContent = newChat.name;
-        }
-
-        messagesData = [
-            {
-                type: 'system',
-                text: '新对话已创建 — 开始和AI伴侣聊天吧！'
-            }
-        ];
-        renderMessages(messagesData);
-        scrollToBottom(false);
-
-        // 聚焦输入框
-        if (messageInput) {
-            messageInput.focus();
         }
     }
 
@@ -503,17 +580,15 @@ var USER_ID = 'user_123'; //用户ID
     // 搜索对话
     // ============================================
     function filterChatList(keyword) {
-        var filtered = [];
         var kw = keyword.toLowerCase();
-
-        for (var i = 0; i < chatHistoryData.length; i++) {
-            if (chatHistoryData[i].name.toLowerCase().indexOf(kw) !== -1 ||
-                chatHistoryData[i].preview.toLowerCase().indexOf(kw) !== -1) {
-                filtered.push(chatHistoryData[i]);
+        var filtered = [];
+        for (var i = 0; i < conversations.length; i++) {
+            if (conversations[i].name.toLowerCase().indexOf(kw) !== -1 ||
+                (conversations[i].preview && conversations[i].preview.toLowerCase().indexOf(kw) !== -1)) {
+                filtered.push(conversations[i]);
             }
         }
-
-        renderChatList(filtered.length > 0 ? filtered : chatHistoryData);
+        renderChatList(filtered.length > 0 ? filtered : conversations);
     }
 
     // ============================================
@@ -521,12 +596,44 @@ var USER_ID = 'user_123'; //用户ID
     // ============================================
     function toggleSidebar(sidebar) {
         if (!sidebar) return;
-
         if (sidebar.classList.contains('open')) {
             sidebar.classList.remove('open');
         } else {
             sidebar.classList.add('open');
         }
+    }
+
+    // ============================================
+    // 更新AI名字（全局同步）
+    // ============================================
+    function updateAiName(newName) {
+        aiName = newName;
+        // 1. 更新顶部标题栏
+        if (chatPartnerName) {
+            chatPartnerName.textContent = newName;
+        }
+        // 2. 更新当前激活对话的名称
+        if (currentConversationId) {
+            var conv = findConversationById(currentConversationId);
+            if (conv) {
+                conv.name = newName;
+                renderChatList(conversations);
+            }
+        }
+        // 3. 更新头像显示（刷新当前消息列表中的AI头像）
+        if (currentConversationId && messagesCache[currentConversationId]) {
+            var msgs = messagesCache[currentConversationId];
+            var firstChar = newName.charAt(0);
+            for (var i = 0; i < msgs.length; i++) {
+                if (msgs[i].type === 'ai') {
+                    msgs[i].avatar = firstChar;
+                }
+            }
+            renderMessages(msgs);
+            scrollToBottom(false);
+        }
+        // 4. 同步到后端
+        syncPersonaToBackendDebounced();
     }
 
     // ============================================
@@ -539,20 +646,14 @@ var USER_ID = 'user_123'; //用户ID
         return div.innerHTML;
     }
 
-    function padZero(num) {
-        return num < 10 ? '0' + num : '' + num;
-    }
-
     // ============================================
     // 事件绑定
     // ============================================
     function bindEvents() {
-        // 发送按钮
         if (sendBtn) {
             sendBtn.addEventListener('click', sendMessage);
         }
 
-        // 回车发送
         if (messageInput) {
             messageInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -562,33 +663,28 @@ var USER_ID = 'user_123'; //用户ID
             });
         }
 
-        // 新建对话
         if (newChatBtn) {
             newChatBtn.addEventListener('click', createNewChat);
         }
 
-        // 搜索对话
         if (searchChat) {
             searchChat.addEventListener('input', function () {
                 filterChatList(this.value);
             });
         }
 
-        // 移动端 - 切换左侧边栏
         if (btnToggleLeft) {
             btnToggleLeft.addEventListener('click', function () {
                 toggleSidebar(sidebarLeft);
             });
         }
 
-        // 移动端 - 切换右侧边栏
         if (btnToggleRight) {
             btnToggleRight.addEventListener('click', function () {
                 toggleSidebar(sidebarRight);
             });
         }
 
-        // 点击聊天区域关闭移动端侧边栏
         if (messagesArea) {
             messagesArea.addEventListener('click', function () {
                 if (sidebarLeft && sidebarLeft.classList.contains('open')) {
@@ -600,24 +696,18 @@ var USER_ID = 'user_123'; //用户ID
             });
         }
 
-        // AI伴侣名字变更
+        // AI名字变更 → 全局同步
         if (aiNameInput) {
             aiNameInput.addEventListener('input', function () {
-                aiName = this.value.trim() || '小薇';
-                // 同步更新顶部标题栏
-                if (chatPartnerName) {
-                    chatPartnerName.textContent = aiName;
-                }
-                // 同步人设到后端（防抖）
-                syncPersonaToBackendDebounced();
+                var newName = this.value.trim() || '小薇';
+                updateAiName(newName);
             });
         }
 
-        // AI伴侣性格变更
+        // AI性格变更 → 仅同步后端
         if (aiPersonalityInput) {
             aiPersonalityInput.addEventListener('input', function () {
                 aiPersonality = this.value.trim() || aiPersonality;
-                // 同步人设到后端（防抖）
                 syncPersonaToBackendDebounced();
             });
         }

@@ -100,6 +100,20 @@ def clean_duplicates():
     conn.close()
     print(f"已删除 {deleted} 条重复用户记录")
 
+def delete_user_by_id(user_id: int) -> bool:
+    """按ID删除用户，返回是否成功"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users WHERE id=?", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return False
+    cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+    print(f"已删除用户: {user['username']} (ID={user_id})")
+    return True
 
 
 if __name__ == '__main__':

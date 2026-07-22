@@ -485,7 +485,8 @@ body {
     border-radius: var(--radius-lg);
     font-size: 0.92rem;
     line-height: 1.6;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    word-break: normal;
     position: relative;
 }
 
