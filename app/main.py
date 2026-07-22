@@ -11,7 +11,12 @@ import os
 from openai import AsyncOpenAI
 
 #导入数据库函数
-from database import init_db,create_user,get_user,verify_user,delete_user_by_id
+from database import (
+    init_db,create_user,get_user,verify_user,delete_user_by_id,
+    get_user_by_id,get_conversations,create_conversation,get_conversation_by_id,
+    get_messages,add_message,delete_conversation,delete_messages,
+    get_messages_for_chat,get_or_create_default_conv
+)
 
 app = FastAPI()
 SECRET = secrets.token_hex(32)
@@ -144,10 +149,11 @@ async def chat(data: schemas.ChatRequest):
         api_key=os.environ.get('DEEPSEEK_API_KEY'),
         base_url="https://api.deepseek.com")
 
-    # 获取该用户的对话历史，没有就初始化空列表
-    if user_id not in db_conversations:
-        db_conversations[user_id] = []
-    history = db_conversations[user_id]
+    # 从数据库加载历史消息（最近 20 条）
+    db_messages = get_messages_for_chat(user_id, limit=20)
+    history = []
+    for msg in db_messages:
+        history.append({"role": msg["role"], "content": msg["content"]})
 
     rules = RULES.replace("{name}",persona["name"])
 
@@ -166,25 +172,156 @@ async def chat(data: schemas.ChatRequest):
         extra_body={"thinking": {"type": "enabled"}}
     )
     reply = response.choices[0].message.content
-    history.append({"role": "user", "content": user_message})
-    history.append({"role": "assistant", "content": reply})
-    db_conversations[user_id] = history
+
+    # 保存用户消息和 AI 回复到数据库
+    current_conv_id = get_or_create_default_conv(user_id)
+    add_message(current_conv_id, user_id, "user", user_message)
+    add_message(current_conv_id, user_id, "assistant", reply)
+
     return {
         "status": "ok",
         "name": persona["name"],
         "reply": reply
     }
 
-@app.get("/profile")
-def profile(x_token: str = Header(...)):
-    token = x_token
+
+def verify_token(token: str) -> dict:
+    """验证Token并返回用户信息"""
     try:
-        data = jwt.decode(token, SECRET, algorithms=["HS256"])
-        return {"code": 200, "msg": "登录成功" , "username": data["username"]}
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        username = payload.get("username")
+        if not username:
+            raise HTTPException(status_code=401, detail="无效的Token")
+
+        user = get_user(username)
+        if not user:
+            raise HTTPException(status_code=401, detail="用户不存在")
+
+        return {"id": user["id"], "username": user["username"]}
     except jwt.ExpiredSignatureError:
-        return {"code": 400, "msg": "登录已过期"}
+        raise HTTPException(status_code=401, detail="登录已过期")
     except jwt.InvalidTokenError:
-        return {"code": 400, "msg": "无效的token"}
+        raise HTTPException(status_code=401, detail="无效的Token")
+
+#获取所有对话
+@app.get("/api/conversations")
+async def get_conversations_list(
+    x_token: str = Header(...),
+):
+    """
+    获取用户的所有会话
+    GET /api/conversations
+    """
+    user_info = verify_token(x_token)
+    user_id = user_info["id"]
+
+    #获取会话列表
+    conversations = get_conversations(user_id)
+    return {
+        "conversations":conversations
+    }
+
+#创建新对话
+@app.post("/api/conversations")
+async def create_conversation(
+    data: schemas.ConversationCreate,
+    x_token: str = Header(...)
+):
+    """
+    创建新会话
+    POST /api/conversations
+    Body: {name: "会话名称"
+    """
+    user_info = verify_token(x_token)
+    user_id = user_info["id"]
+
+    #创建新会话
+    conversation = create_conversation(user_id, data.name)
+
+    if not conversation:
+        raise HTTPException(status_code=400, detail="创建会话失败")
+
+    return {
+        "id": conversation["id"],
+        "name": conversation["name"],
+        "created_at": conversation["created_at"]
+    }
+
+#获取会话消息
+@app.get("/api/conversations/{conv_id}/messages")
+async def get_conversation_messages(
+    conv_id: int,
+    x_token: str = Header(...)
+):
+    """
+    获取会话的所有消息
+    GET /api/conversations/{conv_id}/messages
+    """
+    #从token中获取用户信息
+    user_info = verify_token(x_token)
+    user_id = user_info["id"]
+
+    #验证会话是否属于该用户
+    conv = get_conversation_by_id(conv_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    #获取消息列表
+    messages = get_messages(conv_id, user_id)
+    return {
+        "messages":messages
+    }
+
+#发送消息
+@app.post("/api/conversations/{conv_id}/messages")
+async def send_message(
+    conv_id: int,
+    data: schemas.MessageCreate,
+    x_token: str = Header(...)
+):
+    """
+    发送消息到会话
+    POST /api/conversations/{conv_id}/messages
+    Body: { role: "user", content: "消息内容" }
+    """
+    user_info = verify_token(x_token)
+    user_id = user_info["id"]
+
+    # 2. 验证会话是否属于该用户
+    conv = get_conversation_by_id(conv_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    #验证角色
+    if data.role not in ["user", "assistant"]:
+        raise HTTPException(status_code=400, detail="无效的角色")
+    message = add_message(conv_id, user_id, data.role, data.content)
+
+    if not message:
+        raise HTTPException(status_code=400, detail="发送消息失败")
+    return {
+        "id": message["id"],
+        "created_at": message["created_at"]
+    }
+
+
+#删除会话
+@app.delete("/api/conversations/{conv_id}")
+async def delete_conversation_api(
+        conv_id: int,
+        x_token: str = Header(...)
+):
+    """
+    删除会话
+    """
+    user_info = verify_token(x_token)
+    user_id = user_info["id"]
+
+    success = delete_conversation(conv_id, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    return {"code": 200, "message": "会话已删除"}
 
 # 配置跨域
 from fastapi.middleware.cors import CORSMiddleware

@@ -10,6 +10,7 @@
     // ============================================
     var BACKEND_URL = 'http://localhost:8000';
     var USER_ID = 'user_123';   // 后续登录后可替换为真实用户ID
+    var AUTH_TOKEN = localStorage.getItem('token') || '';  // 从登录页获取 JWT token
     var aiName = '小薇';
     var aiPersonality = '你好！我是小薇，一个善解人意的AI伴侣。\n我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。\n无论你开心还是难过，我都会在这里陪着你。';
 
@@ -27,7 +28,9 @@
 
     /** 获取对话列表 */
     function apiGetConversations() {
-        return fetch(BACKEND_URL + '/api/conversations?user_id=' + encodeURIComponent(USER_ID))
+        return fetch(BACKEND_URL + '/api/conversations', {
+            headers: { 'x-token': AUTH_TOKEN }
+        })
             .then(function (r) { if (!r.ok) throw new Error('加载对话列表失败'); return r.json(); });
     }
 
@@ -35,14 +38,16 @@
     function apiCreateConversation(name) {
         return fetch(BACKEND_URL + '/api/conversations', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: USER_ID, name: name })
+            headers: { 'Content-Type': 'application/json', 'x-token': AUTH_TOKEN },
+            body: JSON.stringify({ name: name })
         }).then(function (r) { if (!r.ok) throw new Error('创建对话失败'); return r.json(); });
     }
 
     /** 获取某个对话的所有消息 */
     function apiGetMessages(convId) {
-        return fetch(BACKEND_URL + '/api/conversations/' + convId + '/messages?user_id=' + encodeURIComponent(USER_ID))
+        return fetch(BACKEND_URL + '/api/conversations/' + convId + '/messages', {
+            headers: { 'x-token': AUTH_TOKEN }
+        })
             .then(function (r) { if (!r.ok) throw new Error('加载消息失败'); return r.json(); });
     }
 
@@ -50,8 +55,8 @@
     function apiAddMessage(convId, role, content) {
         return fetch(BACKEND_URL + '/api/conversations/' + convId + '/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: USER_ID, role: role, content: content })
+            headers: { 'Content-Type': 'application/json', 'x-token': AUTH_TOKEN },
+            body: JSON.stringify({ role: role, content: content })
         }).then(function (r) { if (!r.ok) throw new Error('保存消息失败'); return r.json(); });
     }
 
