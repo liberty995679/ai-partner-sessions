@@ -24,7 +24,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
+            username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -86,21 +86,38 @@ def verify_user(username:str, password:str) -> bool:
     print(f"用户{username} 验证失败！")
     return False
 
+def clean_duplicates():
+    """删除重复用户，保留最早的记录"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        DELETE FROM users WHERE id NOT IN (
+            SELECT MIN(id) FROM users GROUP BY username
+        )
+    ''')
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    print(f"已删除 {deleted} 条重复用户记录")
+
+
+
 if __name__ == '__main__':
     init_db()
-
-    print("测试注册")
-    create_user("张三", "123456")
-    create_user("李四", "654321")
-    create_user("王五", "666666")
-
-    print("测试查询")
-    user = get_user("张三")
-    print(f"查询结果：{user}")
-
-    print("测试登录")
-    verify_user("张三", "123456") #应该验证成功
-    verify_user("张三", "654321") #应该验证失败
+    clean_duplicates()
+    #
+    # print("测试注册")
+    # create_user("张三", "123456")
+    # create_user("李四", "654321")
+    # create_user("王五", "666666")
+    #
+    # print("测试查询")
+    # user = get_user("张三")
+    # print(f"查询结果：{user}")
+    #
+    # print("测试登录")
+    # verify_user("张三", "123456") #应该验证成功
+    # verify_user("张三", "654321") #应该验证失败
 
 
 

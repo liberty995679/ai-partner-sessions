@@ -2,7 +2,6 @@ from pathlib import Path
 from fastapi import FastAPI,HTTPException,Header
 from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from streamlit import success
 
 import schemas
 import secrets
@@ -27,8 +26,6 @@ init_db()
 #挂载静态文件
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-#模拟数据库
-USERDB = {"username":"小明","password":"123456"}
 db_user_personas = {}
 db_conversations = {} # 用户会话历史记录
 
@@ -68,7 +65,7 @@ async def login(data: schemas.LoginRequest):
         # 生成 token
         token = jwt.encode({
             "username": data.username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)
         }, SECRET)
         return {"code": 200, "msg": "登录成功", "token": token}
     raise HTTPException(status_code=400, detail="用户名或密码错误")

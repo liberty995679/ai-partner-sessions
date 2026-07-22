@@ -58,7 +58,7 @@
     }
 
     // --- 表单提交 ---
-    registerForm.addEventListener('submit', function (event) {
+    registerForm.addEventListener('submit', async function (event) {
         event.preventDefault();
 
         const username = usernameInput.value.trim();
@@ -104,17 +104,33 @@
             return;
         }
 
-        // 模拟注册成功
-        console.log('register');
-        console.log('用户名:', username);
-        console.log('密码:', password);
+        // 发送注册请求到后端
+        registerBtn.disabled = true;
+        registerBtn.querySelector('.btn-text').textContent = '注册中...';
 
-        showSuccess('注册成功！即将跳转到登录页面...');
+        try {
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username, password: password })
+            });
+            const data = await response.json();
 
-        // 模拟延迟跳转
-        setTimeout(function () {
-            window.location.href = '/login';
-        }, 1500);
+            if (response.ok) {
+                showSuccess('注册成功！即将跳转到登录页面...');
+                setTimeout(function () {
+                    window.location.href = '/login';
+                }, 1500);
+            } else {
+                showError(data.detail || '注册失败，请稍后重试');
+            }
+        } catch (error) {
+            console.error('注册请求失败:', error);
+            showError('服务器连接失败，请检查网络');
+        } finally {
+            registerBtn.disabled = false;
+            registerBtn.querySelector('.btn-text').textContent = '注 册';
+        }
     });
 
     // --- 输入时自动隐藏提示 ---
