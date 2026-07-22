@@ -4,7 +4,6 @@ from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
 import schemas
-import secrets
 import jwt
 import datetime
 import os
@@ -19,7 +18,7 @@ from database import (
 )
 
 app = FastAPI()
-SECRET = secrets.token_hex(32)
+SECRET = 'ai-companion-jwt-secret-key-2026'
 
 # 路径
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -133,38 +132,46 @@ async def delete_user(user_id: int):
 
 # 2. 接收聊天消息的接口
 @app.post("/chat_api")
-async def chat(data: schemas.ChatRequest):
-    # 提取前端传来的 user_id 和 message
-    user_id = data.user_id
+async def chat(data: schemas.ChatRequest, x_token: str = Header(None)):
     user_message = data.message
+    conv_id = data.conv_id
 
-    # 拿到该用户最新的 Prompt
-    persona = db_user_personas.get(
-        user_id,
-        {"name": "小薇", "prompt": "你叫小薇，是一个善解人意的AI伴侣。"}
-    )
+    # 用 token 获取真实用户ID
+    db_user_id = 0
+    if x_token:
+        try:
+            user_info = verify_token(x_token)
+            db_user_id = user_info["id"]
+        except:
+            pass
 
-    # 这里调用你的大模型 API，把 persona["prompt"] 作为 System Prompt 传给模型...
+    # 优先用请求里传过来的名字和性格
+    persona = {
+        "name": data.name,
+        "prompt": data.prompt
+    }
+    db_user_personas[data.user_id] = persona
+
     client = AsyncOpenAI(
         api_key=os.environ.get('DEEPSEEK_API_KEY'),
         base_url="https://api.deepseek.com")
 
-    # 从数据库加载历史消息（最近 20 条）
-    db_messages = get_messages_for_chat(user_id, limit=20)
+    # 从数据库加载历史消息
     history = []
-    for msg in db_messages:
-        history.append({"role": msg["role"], "content": msg["content"]})
+    if db_user_id > 0 and conv_id > 0:
+        db_messages = get_messages(conv_id, db_user_id, limit=20)
+        for msg in db_messages:
+            history.append({"role": msg["role"], "content": msg["content"]})
 
-    rules = RULES.replace("{name}",persona["name"])
+    rules = RULES.replace("{name}", persona["name"])
 
-    # 正确构建 messages：system + 历史 + 当前消息
     messages = [
         {"role": "system", "content": persona["prompt"] + rules},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    response =await client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="deepseek-v4-pro",
         messages=messages,
         stream=False,
@@ -173,10 +180,15 @@ async def chat(data: schemas.ChatRequest):
     )
     reply = response.choices[0].message.content
 
-    # 保存用户消息和 AI 回复到数据库
-    current_conv_id = get_or_create_default_conv(user_id)
-    add_message(current_conv_id, user_id, "user", user_message)
-    add_message(current_conv_id, user_id, "assistant", reply)
+    # 保存消息到数据库（使用真实 user_id 和 conv_id）
+    if db_user_id > 0:
+        if conv_id <= 0:
+            current_conv_id = get_or_create_default_conv(db_user_id)
+            if current_conv_id:
+                conv_id = current_conv_id
+        if conv_id > 0:
+            add_message(conv_id, db_user_id, "user", user_message)
+            add_message(conv_id, db_user_id, "assistant", reply)
 
     return {
         "status": "ok",
@@ -223,7 +235,7 @@ async def get_conversations_list(
 
 #创建新对话
 @app.post("/api/conversations")
-async def create_conversation(
+async def create_conversation_api(
     data: schemas.ConversationCreate,
     x_token: str = Header(...)
 ):

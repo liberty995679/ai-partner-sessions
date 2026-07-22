@@ -16,8 +16,9 @@ class PersonaRequest(BaseModel):
 class ChatRequest(BaseModel):
     user_id: str
     message: str
-    name: str = "小薇"  # 新增：AI名字
-    prompt: str = "你叫小薇，是一个善解人意的AI伴侣。"  # 新增：AI性格
+    name: str = "小薇"
+    prompt: str = "你叫小薇，是一个善解人意的AI伴侣。"
+    conv_id: int = 0  # 当前对话ID，用于加载和保存历史
 
 class ConversationCreate(BaseModel):
     """创建会话 - 只需要会话名称"""

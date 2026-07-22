@@ -21,6 +21,29 @@
     var currentConversationId = null; // 当前激活的对话ID
     var messagesCache = {};           // { convId: [messageObjects] }
     var isLoadingMessages = false;    // 防止重复加载
+    var personasCache = {};           // { convId: { name, prompt } }  每个对话的人设
+
+    // 人设 localStorage 持久化
+    function savePersonaToStorage(convId, name, prompt) {
+        try {
+            var all = JSON.parse(localStorage.getItem('personas_storage') || '{}');
+            all[convId] = { name: name, prompt: prompt };
+            localStorage.setItem('personas_storage', JSON.stringify(all));
+        } catch (e) {}
+    }
+    function loadPersonaFromStorage(convId) {
+        try {
+            var all = JSON.parse(localStorage.getItem('personas_storage') || '{}');
+            return all[convId] || null;
+        } catch (e) { return null; }
+    }
+    function removePersonaFromStorage(convId) {
+        try {
+            var all = JSON.parse(localStorage.getItem('personas_storage') || '{}');
+            delete all[convId];
+            localStorage.setItem('personas_storage', JSON.stringify(all));
+        } catch (e) {}
+    }
 
     // ============================================
     // API 封装（留着等后端实现）
@@ -58,6 +81,14 @@
             headers: { 'Content-Type': 'application/json', 'x-token': AUTH_TOKEN },
             body: JSON.stringify({ role: role, content: content })
         }).then(function (r) { if (!r.ok) throw new Error('保存消息失败'); return r.json(); });
+    }
+
+    /** 删除对话 */
+    function apiDeleteConversation(convId) {
+        return fetch(BACKEND_URL + '/api/conversations/' + convId, {
+            method: 'DELETE',
+            headers: { 'x-token': AUTH_TOKEN }
+        }).then(function (r) { if (!r.ok) throw new Error('删除失败'); return r.json(); });
     }
 
     // ============================================
@@ -211,6 +242,7 @@
                     '</div>' +
                     '<span class="chat-item-time">' + escapeHtml(item.time || '') + '</span>' +
                     badgeHtml +
+                    '<button class="chat-item-delete" data-delete-id="' + item.id + '" title="删除对话">×</button>' +
                 '</div>';
         }
         chatList.innerHTML = html;
@@ -220,6 +252,17 @@
             items[j].addEventListener('click', function () {
                 var id = this.getAttribute('data-id');
                 if (id) switchConversation(id);
+            });
+        }
+
+        var deleteBtns = chatList.querySelectorAll('.chat-item-delete');
+        for (var k = 0; k < deleteBtns.length; k++) {
+            deleteBtns[k].addEventListener('click', function (e) {
+                e.stopPropagation();
+                var convId = this.getAttribute('data-delete-id');
+                if (convId && confirm('确定要删除这个对话吗？')) {
+                    deleteConversation(convId);
+                }
             });
         }
     }
@@ -298,6 +341,25 @@
 
         currentConversationId = convId;
 
+        // 恢复该对话的人设（优先级：内存缓存 > localStorage > 对话名）
+        var savedPersona = personasCache[convId] || loadPersonaFromStorage(convId);
+        if (savedPersona) {
+            aiName = savedPersona.name;
+            aiPersonality = savedPersona.prompt;
+            personasCache[convId] = savedPersona;
+        } else {
+            // 无缓存时用对话名作为 AI 名字（新对话保持默认）
+            var target = findConversationById(convId);
+            if (target && target.name && target.name.indexOf('新对话') === -1) {
+                aiName = target.name;
+            } else {
+                aiName = '小薇';
+                aiPersonality = '你好！我是小薇，一个善解人意的AI伴侣。\n我喜欢聊天、分享趣事，也会在你需要的时候提供温暖的陪伴。\n无论你开心还是难过，我都会在这里陪着你。';
+            }
+        }
+        if (aiNameInput) aiNameInput.value = aiName;
+        if (aiPersonalityInput) aiPersonalityInput.value = aiPersonality;
+
         // 更新激活状态
         for (var i = 0; i < conversations.length; i++) {
             conversations[i].active = (String(conversations[i].id) === String(convId));
@@ -362,17 +424,17 @@
     // 新建对话 — 编号规则：对话001, 对话002...
     // ============================================
     function createNewChat() {
-        // 计算下一个编号
+        // 计算下一个编号，避免冒名顶替其他对话
         var maxNum = 0;
         for (var i = 0; i < conversations.length; i++) {
-            var match = conversations[i].name && conversations[i].name.match(/^对话(\d+)$/);
+            var match = conversations[i].name && conversations[i].name.match(/^新对话(\d*)$/);
             if (match) {
-                var num = parseInt(match[1], 10);
+                var num = match[1] ? parseInt(match[1], 10) : 1;
                 if (num > maxNum) maxNum = num;
             }
         }
         var newNum = maxNum + 1;
-        var newName = '对话' + padNumber(newNum, 3);  // 对话001, 对话002...
+        var newName = '新对话' + (newNum > 1 ? newNum : '');
 
         apiCreateConversation(newName)
             .then(function (data) {
@@ -404,14 +466,14 @@
     function createNewChatLocal(optName) {
         var maxNum = 0;
         for (var i = 0; i < conversations.length; i++) {
-            var match = conversations[i].name && conversations[i].name.match(/^对话(\d+)$/);
+            var match = conversations[i].name && conversations[i].name.match(/^新对话(\d*)$/);
             if (match) {
-                var num = parseInt(match[1], 10);
+                var num = match[1] ? parseInt(match[1], 10) : 1;
                 if (num > maxNum) maxNum = num;
             }
         }
-        // 同时检查本地缓存里已用过但未保存到列表的
-        var name = optName || ('对话' + padNumber(maxNum + 1, 3));
+        var newNum = maxNum + 1;
+        var name = optName || ('新对话' + (newNum > 1 ? newNum : ''));
         var conv = {
             id: 'local_' + Date.now(),
             name: name,
@@ -440,9 +502,16 @@
         currentConversationId = conv.id;
         if (chatPartnerName) chatPartnerName.textContent = conv.name;
 
+        // 初始化该对话的人设缓存 + localStorage（新建对话用对话名 + 默认性格）
+        if (!personasCache[conv.id]) {
+            var initName = (conv.name && conv.name.indexOf('新对话') === -1) ? conv.name : aiName;
+            personasCache[conv.id] = { name: initName, prompt: aiPersonality };
+            savePersonaToStorage(conv.id, initName, aiPersonality);
+        }
+
         messagesCache[conv.id] = [{
             type: 'system',
-            text: '新对话已创建 — 开始和' + aiName + '聊天吧！',
+            text: '新对话已创建 — 开始和她聊天吧！',
             created_at: conv.created_at
         }];
         renderMessages(messagesCache[conv.id]);
@@ -489,12 +558,7 @@
         // 清空输入
         messageInput.value = '';
 
-        // 尝试保存到后端（异步，不阻塞UI）
-        apiAddMessage(currentConversationId, 'user', text).catch(function () {
-            // 静默失败，消息已在前端缓存
-        });
-
-        // 请求AI回复
+        // 请求AI回复（后端会统一保存消息，前端不再重复调用 apiAddMessage）
         fetchAIReply(text);
     }
 
@@ -516,11 +580,21 @@
     function fetchAIReply(userMessageText) {
         var timeStr = getNowTimeStr();
         var nowISO = getNowISO();
+        var convIdToSend = (String(currentConversationId).indexOf('local_') === 0) ? 0 : currentConversationId;
 
         fetch(BACKEND_URL + '/chat_api', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: USER_ID, message: userMessageText })
+            headers: {
+                'Content-Type': 'application/json',
+                'x-token': AUTH_TOKEN
+            },
+            body: JSON.stringify({
+                user_id: USER_ID,
+                message: userMessageText,
+                name: aiName,
+                prompt: aiPersonality,
+                conv_id: convIdToSend
+            })
         })
         .then(function (response) {
             if (!response.ok) throw new Error('网络请求失败');
@@ -548,11 +622,6 @@
 
             // 更新预览
             updateConversationPreview(currentConversationId, replyText);
-
-            // 保存到后端
-            apiAddMessage(currentConversationId, 'assistant', replyText).catch(function () {
-                // 静默失败
-            });
         })
         .catch(function (error) {
             console.error('[AI回复请求失败]:', error);
@@ -579,6 +648,34 @@
         } else {
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
+    }
+
+    // ============================================
+    // 删除对话
+    // ============================================
+    function deleteConversation(convId) {
+        apiDeleteConversation(convId)
+            .then(function () {
+                conversations = conversations.filter(function (c) {
+                    return String(c.id) !== String(convId);
+                });
+                delete messagesCache[convId];
+                delete personasCache[convId];
+                removePersonaFromStorage(convId);
+
+                if (String(currentConversationId) === String(convId)) {
+                    currentConversationId = null;
+                    messagesList.innerHTML = '';
+                    if (chatPartnerName) chatPartnerName.textContent = 'AI 智能伴侣';
+                    if (conversations.length > 0) {
+                        switchConversation(conversations[0].id);
+                    }
+                }
+                renderChatList(conversations);
+            })
+            .catch(function (err) {
+                console.error('[删除对话失败]:', err);
+            });
     }
 
     // ============================================
@@ -613,6 +710,11 @@
     // ============================================
     function updateAiName(newName) {
         aiName = newName;
+        // 保存到当前对话的人设缓存 + localStorage
+        if (currentConversationId) {
+            personasCache[currentConversationId] = { name: newName, prompt: aiPersonality };
+            savePersonaToStorage(currentConversationId, newName, aiPersonality);
+        }
         // 1. 更新顶部标题栏
         if (chatPartnerName) {
             chatPartnerName.textContent = newName;
@@ -713,6 +815,10 @@
         if (aiPersonalityInput) {
             aiPersonalityInput.addEventListener('input', function () {
                 aiPersonality = this.value.trim() || aiPersonality;
+                if (currentConversationId) {
+                    personasCache[currentConversationId] = { name: aiName, prompt: aiPersonality };
+                    savePersonaToStorage(currentConversationId, aiName, aiPersonality);
+                }
                 syncPersonaToBackendDebounced();
             });
         }
