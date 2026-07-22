@@ -2,6 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI,HTTPException,Header
 from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from streamlit import success
 
 import schemas
 import secrets
@@ -9,12 +10,20 @@ import jwt
 import datetime
 import os
 from openai import AsyncOpenAI
+
+#导入数据库函数
+from database import init_db,create_user,get_user,verify_user
+
 app = FastAPI()
 SECRET = secrets.token_hex(32)
 
 # 路径
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE_DIR = BASE_DIR / "templates"
+
+#初始化数据库
+init_db()
+
 #挂载静态文件
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
@@ -48,28 +57,38 @@ def root():
 def login():
     return render_html("login.html")
 
+# 登录接口
 @app.post("/login")
-def login(data: schemas.LoginRequest):
-    username = data.username
-    password = data.password
-    if USERDB["username"] == username and USERDB["password"] == password:
-        token = jwt.encode({"username": username, "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)}, SECRET, algorithm="HS256")
-        return {"code": 200, "msg": "登录成功" , "token": token}
+async def login(data: schemas.LoginRequest):
+    """
+    用户登录
+    """
+    # 调用数据库函数验证用户
+    if verify_user(data.username, data.password):
+        # 生成 token
+        token = jwt.encode({
+            "username": data.username,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        }, SECRET)
+        return {"code": 200, "msg": "登录成功", "token": token}
     raise HTTPException(status_code=400, detail="用户名或密码错误")
 
 @app.get("/register")
-def register():
+async def register():
     return render_html("register.html")
 
+
+#注册接口
 @app.post("/register")
-def register(data: schemas.RegisterRequest):
-    username = data.username
-    password = data.password
-    if USERDB["username"] == username:
-        raise HTTPException(status_code=400, detail="用户已存在")
-    USERDB["username"] = username
-    USERDB["password"] = password
-    return {"code": 200, "msg": "注册成功"}
+async def register(data: schemas.RegisterRequest):
+    """
+    用户注册
+    """
+    #调用数据库函数
+    success = create_user(data.username, data.password)
+    if success:
+        return {"code": 200, "msg": "注册成功"}
+    raise HTTPException(status_code=400, detail="用户已存在")
 
 @app.get("/chat")
 def chat():
@@ -83,6 +102,18 @@ async def set_persona(data: schemas.PersonaRequest):
     }
     return {"code": 200, "msg": "设置成功"}
 
+
+#测试接口 （查看所有用户）
+@app.get("/api/users")
+async def list_users():
+    """查看所有用户(仅供测试）"""
+    from database import get_connection
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("select id, username, created_at from users")
+    users = cursor.fetchall()
+    conn.close()
+    return {"users":[dict(u) for u in users]}
 
 # 2. 接收聊天消息的接口
 @app.post("/chat_api")
