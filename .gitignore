@@ -1,5 +1,5 @@
 .claude
-*.png
+/草图
 .idea
 # Python 缓存
 __pycache__/
